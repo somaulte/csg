@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+#
+# csg: generate base16 colorscheme using a single colormask in hex.
+# https://github.com/somaulte/csg
+#
+# MIT License
+#
+# Copyright (c) 2018 somaulte <somaulte@teknik.io>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# Except as contained in this notice, the name(s) of the above copyright
+# holders shall not be used in advertising or otherwise to promote the sale, use
+# or other dealings in this Software without prior written authorization.
+
+# List colors 0-15 of base16 colorscheme to compare against
+# TODO: load these from external file?
+color0='#12271c'
+color1='#7d3532'
+color2='#768550'
+color3='#b69564'
+color4='#5a818f'
+color5='#886681'
+color6='#628e88'
+color7='#9f9f9f'
+color8='#404141'
+color9='#ab4642'
+color10='#a1b56c'
+color11='#f7ca88'
+color12='#7cafc2'
+color13='#ba8baf'
+color14='#86c1b9'
+color15='#d8d8d8'
+
+deconstruct() {
+	# Determine which index we are working on
+	c="color${1}"
+
+	# Deconstruct current base16 color: ${c{$1}r}
+	cr="${!c:1:2}"
+	cr="$((16#${cr}))"
+	cg="${!c:3:2}"
+	cg="$((16#${cg}))"
+	cb="${!c:5:2}"
+	cb="$((16#${cb}))"
+	cr["$1"]="${cr}"
+	cg["$1"]="${cg}"
+	cb["$1"]="${cb}"
+
+	r1="${2:1:2}"
+	r1="$((16#${r1}))"
+	g1="${2:3:2}"
+	g1="$((16#${g1}))"
+	b1="${2:5:2}"
+	b1="$((16#${b1}))"
+}
+
+# Formula:
+# a = ${{rgb}1}; b = ${c${1}{rgb}}; c = ( ${2} / 100 )
+# ( ac + !ab )
+merge() {
+	# Determine which index we are working on
+	#or="c${1}r"
+	#or="${!or}"
+	#og="c${1}g"
+	#og="${!og}"
+	#ob="c${1}b"
+	#ob="${!ob}"
+	or="${cr[$1]}"
+	og="${cg[$1]}"
+	ob="${cb[$1]}"
+
+	r2="$(( ( ( ${2} * ${r1} ) + ( ( 100 - ${2} ) * ${or} ) ) / 100 ))"
+	g2="$(( ( ( ${2} * ${g1} ) + ( ( 100 - ${2} ) * ${og} ) ) / 100 ))"
+	b2="$(( ( ( ${2} * ${b1} ) + ( ( 100 - ${2} ) * ${ob} ) ) / 100 ))"
+}
+
+reconstruct() {
+	#printf -v r3 '%02x' "${r2}"
+	#printf -v g3 '%02x' "${g2}"
+	#printf -v b3 '%02x' "${b2}"
+	printf -v color '%b%02x%02x%02x' "color${1}: #" "${r2}" "${g2}" "${b2}"
+}
+
+# Print usage info
+usage() {
+	IFS=$'\n'
+	read -rd '' "usage_doc" <<-'EOF'
+		Usage: csg color weight
+		   Arguments:
+		   	color				A single color represented in hexadecimal format: #ffffff
+		   	weight			Value between 0 and 100, a higher number results in
+		   						a color more closely resembling the input color.
+	EOF
+	printf '%b\n' "$usage_doc"
+}
+
+main() {
+	# Check for any specified options
+	[[ -n "$1" ]] && [[ -n "$2" ]] && {
+		[[ "$1" =~ "#"[[:xdigit:]] ]] && [[ "$2" =~ [[:digit:]] ]] && {
+			for i in {0..15}; do
+				deconstruct "$i" "$1"
+				merge "$i" "$2"
+				reconstruct "$i"
+				printf '%b\n' "${color}"
+			done
+		}
+	} || {
+		usage
+		exit 0
+	}
+}
+
+main "$@"
