@@ -27,32 +27,34 @@
 #
 # Except as contained in this notice, the name(s) of the above copyright
 # holders shall not be used in advertising or otherwise to promote the sale, use
-# or other dealings in this Software without prior written authorization.
+# or other dealings in this Software without prior written authorization.=
 
 # List colors 0-15 of base16 colorscheme to compare against
-# TODO: load these from external file?
-color0='#12271c'
-color1='#7d3532'
-color2='#768550'
-color3='#b69564'
-color4='#5a818f'
-color5='#886681'
-color6='#628e88'
-color7='#9f9f9f'
-color8='#404141'
-color9='#ab4642'
-color10='#a1b56c'
-color11='#f7ca88'
-color12='#7cafc2'
-color13='#ba8baf'
-color14='#86c1b9'
-color15='#d8d8d8'
+color0='#1D1F23'
+color1='#A54B4B'
+color2='#6DA741'
+color3='#836539'
+color4='#216590'
+color5='#5C3466'
+color6='#1AAD95'
+color7='#B6B6B6'
+color8='#2D3135'
+color9='#D76F68'
+color10='#96CB5C'
+color11='#C59B3D'
+color12='#21A4DF'
+color13='#AD7FA8'
+color14='#68CBC0'
+color15='#D3D7CF'
 
+# Usage: deconstruct [index] [color]
+# Separates color channels from hexadecimal format colors and converts them to
+# base10 integers
 deconstruct() {
 	# Determine which index we are working on
 	c="color${1}"
 
-	# Deconstruct current base16 color: ${c{$1}r}
+	# Deconstruct current base16 color: ${c{rgb}[$1]}
 	cr="${!c:1:2}"
 	cr="$((16#${cr}))"
 	cg="${!c:3:2}"
@@ -63,39 +65,30 @@ deconstruct() {
 	cg["$1"]="${cg}"
 	cb["$1"]="${cb}"
 
-	r1="${2:1:2}"
-	r1="$((16#${r1}))"
-	g1="${2:3:2}"
-	g1="$((16#${g1}))"
-	b1="${2:5:2}"
-	b1="$((16#${b1}))"
+	ir1="${2:1:2}"
+	ir1="$((16#${r1}))"
+	ig1="${2:3:2}"
+	ig1="$((16#${g1}))"
+	ib1="${2:5:2}"
+	ib1="$((16#${b1}))"
 }
 
 # Formula:
-# a = ${{rgb}1}; b = ${c${1}{rgb}}; c = ( ${2} / 100 )
-# ( ac + !ab )
+# a = ${i{rgb}1}; b = ${c{rgb}[$1]}; c = ( ${2} / 100 )
+# ( ac + !bc )
+#
+# Usage: merge [index] [weight]
+# Generates color channel values between the current base16 and input colors
 merge() {
-	# Determine which index we are working on
-	#or="c${1}r"
-	#or="${!or}"
-	#og="c${1}g"
-	#og="${!og}"
-	#ob="c${1}b"
-	#ob="${!ob}"
-	or="${cr[$1]}"
-	og="${cg[$1]}"
-	ob="${cb[$1]}"
-
-	r2="$(( ( ( ${2} * ${r1} ) + ( ( 100 - ${2} ) * ${or} ) ) / 100 ))"
-	g2="$(( ( ( ${2} * ${g1} ) + ( ( 100 - ${2} ) * ${og} ) ) / 100 ))"
-	b2="$(( ( ( ${2} * ${b1} ) + ( ( 100 - ${2} ) * ${ob} ) ) / 100 ))"
+	ir2="$(( ( ( ${2} * ${ir1} ) + ( ( 100 - ${2} ) * ${cr[$1]} ) ) / 100 ))"
+	ig2="$(( ( ( ${2} * ${ig1} ) + ( ( 100 - ${2} ) * ${cg[$1]} ) ) / 100 ))"
+	ib2="$(( ( ( ${2} * ${ib1} ) + ( ( 100 - ${2} ) * ${cb[$1]} ) ) / 100 ))"
 }
 
+# Usage: reconstruct [index]
+# Converts new color channel values back into a full hexadecimal format color
 reconstruct() {
-	#printf -v r3 '%02x' "${r2}"
-	#printf -v g3 '%02x' "${g2}"
-	#printf -v b3 '%02x' "${b2}"
-	printf -v color '%b%02x%02x%02x' "color${1}: #" "${r2}" "${g2}" "${b2}"
+	printf -v oc '%b%02x%02x%02x' "#" "${ir2}" "${ig2}" "${ib2}"
 }
 
 # Print usage info
@@ -104,9 +97,9 @@ usage() {
 	read -rd '' "usage_doc" <<-'EOF'
 		Usage: csg color weight
 		   Arguments:
-		   	color				A single color represented in hexadecimal format: #ffffff
-		   	weight			Value between 0 and 100, a higher number results in
-		   						a color more closely resembling the input color.
+		   	color				A single color represented in hexadecimal format.
+		   	weight				Value between 0 and 100, a higher number results in
+	   						a color more closely resembling the input color.
 	EOF
 	printf '%b\n' "$usage_doc"
 }
@@ -119,7 +112,7 @@ main() {
 				deconstruct "$i" "$1"
 				merge "$i" "$2"
 				reconstruct "$i"
-				printf '%b\n' "${color}"
+				[[ "$i" == "0" ]] && printf '%b\n' "color${i}: $1" || printf '%b\n' "color${i}: $oc"
 			done
 		}
 	} || {
