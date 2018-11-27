@@ -27,7 +27,7 @@
 #
 # Except as contained in this notice, the name(s) of the above copyright
 # holders shall not be used in advertising or otherwise to promote the sale, use
-# or other dealings in this Software without prior written authorization.=
+# or other dealings in this Software without prior written authorization.
 
 # List colors 0-15 of base16 colorscheme to compare against
 color0='#1D1F23'
@@ -75,7 +75,7 @@ deconstruct() {
 
 # Formula:
 # a = ${i{rgb}1}; b = ${c{rgb}[$1]}; c = ( ${2} / 100 )
-# ( ac + !bc )
+# ( ac + b!c )
 #
 # Usage: merge [index] [weight]
 # Generates color channel values between the current base16 and input colors
