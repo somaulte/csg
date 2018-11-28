@@ -29,6 +29,13 @@
 # holders shall not be used in advertising or otherwise to promote the sale, use
 # or other dealings in this Software without prior written authorization.
 
+# If the $CSG_DEBUG environment variable is set to 'true' or '1', enter debug mode
+[[ "$CSG_DEBUG" =~ ('true'|'1') ]] && set -x
+
+# Disable unicode for performance
+LC_ALL=C
+LANG=C
+
 # List colors 0-15 of base16 colorscheme to compare against
 color0='#1D1F23'
 color1='#A54B4B'
@@ -66,11 +73,11 @@ deconstruct() {
 	cb["$1"]="${cb}"
 
 	ir1="${2:1:2}"
-	ir1="$((16#${r1}))"
+	ir1="$((16#${ir1}))"
 	ig1="${2:3:2}"
-	ig1="$((16#${g1}))"
+	ig1="$((16#${ig1}))"
 	ib1="${2:5:2}"
-	ib1="$((16#${b1}))"
+	ib1="$((16#${ib1}))"
 }
 
 # Formula:
@@ -95,7 +102,10 @@ reconstruct() {
 usage() {
 	IFS=$'\n'
 	read -rd '' "usage_doc" <<-'EOF'
-		Usage: csg color weight
+		Usage: csg {OPTION} color weight
+		   Options:
+		   	-f				Set color0 to the input color.
+		   	-h, --help			Display this message.
 		   Arguments:
 		   	color				A single color represented in hexadecimal format.
 		   	weight				Value between 0 and 100, a higher number results in
@@ -105,19 +115,28 @@ usage() {
 }
 
 main() {
-	# Check for any specified options
-	[[ -n "$1" ]] && [[ -n "$2" ]] && {
-		[[ "$1" =~ "#"[[:xdigit:]] ]] && [[ "$2" =~ [[:digit:]] ]] && {
+	# Check for any specified options or arguments
+	[[ "$1" =~ ("-h"|"--help") ]] && {
+		usage
+		exit 0
+	} || [[ "$1" == "-f" ]] && {
+		COLOR0_SAME_AS_BG="1"
+		shift 1
+		main "$@"
+	} || [[ -n "$1" ]] && [[ -n "$2" ]] && {
+		# Verify arguments are valid
+		[[ "$1" =~ ^#[A-Fa-f0-9]{1,6}$ ]] && [[ "$2" =~ ^[0-9]$|^[0-9][0-9]$|^[0-1][0]{1,2}$ ]] && {
 			for i in {0..15}; do
 				deconstruct "$i" "$1"
 				merge "$i" "$2"
 				reconstruct "$i"
-				[[ "$i" == "0" ]] && printf '%b\n' "color${i}: $1" || printf '%b\n' "color${i}: $oc"
+				[[ "$i" == "0" ]] && [[ "$COLOR0_SAME_AS_BG" == "1" ]] && printf '%b\n' "color${i}: $1" || printf '%b\n' "color${i}: $oc"
 			done
+			exit 0
 		}
 	} || {
 		usage
-		exit 0
+		exit 1
 	}
 }
 
