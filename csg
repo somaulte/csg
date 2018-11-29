@@ -95,7 +95,7 @@ merge() {
 # Usage: reconstruct [index]
 # Converts new color channel values back into a full hexadecimal format color
 reconstruct() {
-	printf -v oc '%b%02x%02x%02x' "#" "${ir2}" "${ig2}" "${ib2}"
+	printf -v oc '%s%02x%02x%02x' "#" "${ir2}" "${ig2}" "${ib2}"
 }
 
 # Print usage info
@@ -107,7 +107,7 @@ usage() {
 		   	-f				Set color0 to the input color.
 		   	-h, --help			Display this message.
 		   Arguments:
-		   	color				A single color represented in hexadecimal format.
+		   	color				A single color represented in hexadecimal format: #FFFFFF
 		   	weight				Value between 0 and 100, a higher number results in
 	   						a color more closely resembling the input color.
 	EOF
@@ -125,7 +125,7 @@ main() {
 		main "$@"
 	} || [[ -n "$1" ]] && [[ -n "$2" ]] && {
 		# Verify arguments are valid
-		[[ "$1" =~ ^#[A-Fa-f0-9]{1,6}$ ]] && [[ "$2" =~ ^[0-9]$|^[0-9][0-9]$|^[0-1][0]{1,2}$ ]] && {
+		[[ "$1" =~ ^'#'[A-Fa-f0-9]{1,6}$ ]] && [[ "$2" =~ ^[0-9]$|^[0-9][0-9]$|^[0-1][0]{1,2}$ ]] && {
 			for i in {0..15}; do
 				deconstruct "$i" "$1"
 				merge "$i" "$2"
