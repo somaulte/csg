@@ -104,12 +104,13 @@ usage() {
 	read -rd '' "usage_doc" <<-'EOF'
 		Usage: csg {OPTION} color weight
 		   Options:
-		   	-f				Set color0 to the input color.
-		   	-h, --help			Display this message.
+		   	-c=FILE			Load colorscheme to compare against from external file.
+		   	-f			Set color0 to the input color.
+		   	-h, --help		Display this message.
 		   Arguments:
-		   	color				A single color represented in hexadecimal format: #FFFFFF
-		   	weight				Value between 0 and 100, a higher number results in
-	   						a color more closely resembling the input color.
+		   	color			A single color represented in hexadecimal format: #FFFFFF
+		   	weight			Value between 0 and 100, a higher number results in a
+		   				color more closely resembling the input color.
 	EOF
 	printf '%b\n' "$usage_doc"
 }
@@ -121,6 +122,16 @@ main() {
 		exit 0
 	} || [[ "$1" == "-f" ]] && {
 		COLOR0_SAME_AS_BG="1"
+		shift 1
+		main "$@"
+	} || [[ "$1" =~ '-c='* ]] && {
+		# Try to source external colorscheme file
+		COLOR_FILE="${1##-c=}"
+		[[ -e "$COLOR_FILE" ]] && . "$COLOR_FILE" || {
+			printf '%b\n' "$COLOR_FILE not found."
+			usage
+			exit 1
+		}
 		shift 1
 		main "$@"
 	} || [[ -n "$1" ]] && [[ -n "$2" ]] && {
