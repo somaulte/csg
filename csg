@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# csg: generate base16 colorscheme using a single colormask in hex.
+# csg: generate a tinted base16 colorscheme using a single colormask.
 # https://github.com/somaulte/csg
 #
 # MIT License
@@ -72,6 +72,7 @@ deconstruct() {
 	cg["$1"]="${cg}"
 	cb["$1"]="${cb}"
 
+	# Deconstruct input color: $i{rgb}1
 	ir1="${2:1:2}"
 	ir1="$((16#${ir1}))"
 	ig1="${2:3:2}"
@@ -103,14 +104,21 @@ usage() {
 	IFS=$'\n'
 	read -rd '' "usage_doc" <<-'EOF'
 		Usage: csg {OPTION} color weight
+		Example: csg -c="~/documents/colors" -f #12271c 55
+		
 		   Options:
-		   	-c=FILE			Load colorscheme to compare against from external file.
+		   	-c='/path/to/colors'	Load colorscheme to compare against from external file.
 		   	-f			Set color0 to the input color.
 		   	-h, --help		Display this message.
+		
 		   Arguments:
 		   	color			A single color represented in hexadecimal format: #FFFFFF
 		   	weight			Value between 0 and 100, a higher number results in a
 		   				color more closely resembling the input color.
+		
+		   Environment variables:
+		   	CSG_DEBUG		If set to 'true' or '1', enter debug mode.
+		
 	EOF
 	printf '%b\n' "$usage_doc"
 }
@@ -137,10 +145,12 @@ main() {
 	} || [[ -n "$1" ]] && [[ -n "$2" ]] && {
 		# Verify arguments are valid
 		[[ "$1" =~ ^'#'[A-Fa-f0-9]{1,6}$ ]] && [[ "$2" =~ ^[0-9]$|^[0-9][0-9]$|^[0-1][0]{1,2}$ ]] && {
+			# Loop through color0-15
 			for i in {0..15}; do
 				deconstruct "$i" "$1"
 				merge "$i" "$2"
 				reconstruct "$i"
+				# Check if '-f' was set
 				[[ "$i" == "0" ]] && [[ "$COLOR0_SAME_AS_BG" == "1" ]] && printf '%b\n' "color${i}: $1" || printf '%b\n' "color${i}: $oc"
 			done
 			exit 0
