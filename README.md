@@ -14,11 +14,12 @@ Example: csg -c="~/documents/colors" -f #12271c 55
 
 	Options:
 		-c='/path/to/colors'	Load colorscheme to compare against from external file.
+					Color0-15 should be listed in this file as strings in bash syntax.
 		-f			Set color0 to the input color.
 		-h, --help		Display this message.
 
 	Arguments:
-		color			A single color represented in hexadecimal format: #FFFFFF
+		color			A single color represented in hexadecimal format: '#FFFFFF'.
 		weight			Value between 0 and 100, a higher number results in a
 					color more closely resembling the input color.
 
