@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
 # csg: generate a tinted base16 colorscheme using a single colormask.
-# https://github.com/somaulte/csg
+# https://gitlab.com/ogdenjosh/csg
 #
 # MIT License
 #
-# Copyright (c) 2018 somaulte <somaulte@teknik.io>
+# Copyright (c) 2018-2019 Joshua Ogden <ogdenjosh@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -82,7 +82,7 @@ deconstruct_b16() {
 
 # Formula:
 # a = ${i{rgb}1}; b = ${c{rgb}[$1]}; c = ( ${2} / 100 )
-# ( ac + b!c )
+# ( ac + b(100 - c) )
 #
 # Usage: merge [index] [weight]
 # Generates color channel values between the current base16 and input colors
@@ -102,7 +102,7 @@ reconstruct() {
 usage() {
 	IFS=$'\n'
 	read -rd '' "usage_doc" <<-'EOF'
-		Usage: csg {OPTION} color weight
+		Usage: csg {OPTION} [color] [weight]
 		Example: csg -c="~/documents/colors" -f #12271c 55
 		
 		   Options:
@@ -124,44 +124,52 @@ usage() {
 }
 
 main() {
-	# Check for any specified options or arguments
-	[[ "$1" =~ ("-h"|"--help") ]] && {
-		usage
-		exit 0
-	} || [[ "$1" == "-f" ]] && {
-		COLOR0_SAME_AS_BG="1"
-		shift 1
-		main "$@"
-	} || [[ "$1" =~ '-c='* ]] && {
-		# Try to source external colorscheme file
-		COLOR_FILE="${1##-c=}"
-		[[ -e "$COLOR_FILE" ]] && . "$COLOR_FILE" || {
-			printf '%b\n' "$COLOR_FILE not found."
-			usage
-			exit 1
-		}
-		shift 1
-		main "$@"
-	} || [[ "$1" =~ ^'#'[A-Fa-f0-9]{1,6}$ ]] && [[ "$2" =~ ^[0-9]$|^[0-9][0-9]$|^[0-1][0]{1,2}$ ]] && {
-		# Check if there are options after main args
-		[[ -n "$3" ]] && {
-			main "${@:3}" "$1" "$2"
-		}
-		# Deconstruct input color
-		deconstruct_i "$1"
-		# Loop through color0-15
-		for i in {0..15}; do
-			deconstruct_b16 "$i"
-			merge "$i" "$2"
-			reconstruct "$i"
-			# Check if '-f' was set
-			[[ "$i" == "0" ]] && [[ "$COLOR0_SAME_AS_BG" == "1" ]] && printf '%b\n' "color${i}: $1" || printf '%b\n' "color${i}: $oc"
-		done
-		exit 0
-	} || {
+	# Move args into an array so we can access per position
+	for arg in "${@}"; do
+		args+=("$arg")
+	done
+	for arg in "${!args[@]}"; do
+		case "${args[$arg]}" in
+			'-h'|'--help')
+				usage
+				exit 0
+				;;
+			'-f')
+				COLOR0_SAME_AS_BG="1"
+				;;
+			'-c='*)
+				# Try to source external colorscheme file
+				COLOR_FILE="${args[$arg]}"
+				COLOR_FILE="${COLOR_FILE##-c=}"
+				[[ ! -e "$COLOR_FILE" ]] && {
+					printf '%b\n' "Color file '$COLOR_FILE' not found."
+					usage
+					exit 1
+				}|| . "$COLOR_FILE" || {
+					printf '%b\n' "Colors in '$COLOR_FILE' not found or bad syntax."
+					usage
+					exit 1
+				}
+				;;
+		esac
+		[[ "${args[$arg]}" =~ ^'#'[A-Fa-f0-9]{6}$ ]] && color_i="${args[$arg]}"
+		[[ "${args[$arg]}" =~ ^[0-9]$|^[0-9][0-9]$|^[0-1][0]{1,2}$ ]] && color_s="${args[$arg]}"
+	done
+	[[ -n "$color_i" ]] && [[ -n "$color_s" ]] || {
 		usage
 		exit 1
 	}
+	# Deconstruct input color
+	deconstruct_i "$color_i"
+	# Loop through color0-15
+	for i in {0..15}; do
+		deconstruct_b16 "$i"
+		merge "$i" "$color_s"
+		reconstruct "$i"
+		# Check if '-f' was set
+		[[ "$i" == "0" ]] && [[ "$COLOR0_SAME_AS_BG" == "1" ]] && printf '%b\n' "color${i}: $color_i" || printf '%b\n' "color${i}: $oc"
+	done
+	exit 0
 }
 
 main "$@"
