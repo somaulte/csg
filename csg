@@ -57,24 +57,18 @@ color15='#D3D7CF'
 # Usage: deconstruct_i [color]
 # Separate input color channels and convert from hexadecimal to decimal
 deconstruct_i() {
-	ir1="${1:1:2}"
-	ir1="$((16#${ir1}))"
-	ig1="${1:3:2}"
-	ig1="$((16#${ig1}))"
-	ib1="${1:5:2}"
-	ib1="$((16#${ib1}))"
+	ir1="$((16#${1:1:2}))"
+	ig1="$((16#${1:3:2}))"
+	ib1="$((16#${1:5:2}))"
 }
 
 # Usage: deconstruct_b16 [index]
 # Separate color[index] color channels and convert from hexadecimal to decimal
 deconstruct_b16() {
 	c="color${1}"
-	cr="${!c:1:2}"
-	cr="$((16#${cr}))"
-	cg="${!c:3:2}"
-	cg="$((16#${cg}))"
-	cb="${!c:5:2}"
-	cb="$((16#${cb}))"
+	cr="$((16#${!c:1:2}))"
+	cg="$((16#${!c:3:2}))"
+	cb="$((16#${!c:5:2}))"
 	cr["$1"]="${cr}"
 	cg["$1"]="${cg}"
 	cb["$1"]="${cb}"
@@ -152,6 +146,7 @@ main() {
 				}
 				;;
 		esac
+		# We will check for the input fields here, otherwise we would unset found opts and then pass ${args[@]} as input
 		[[ "${args[$arg]}" =~ ^'#'[A-Fa-f0-9]{6}$ ]] && color_i="${args[$arg]}"
 		[[ "${args[$arg]}" =~ ^[0-9]$|^[0-9][0-9]$|^[0-1][0]{1,2}$ ]] && color_s="${args[$arg]}"
 	done
