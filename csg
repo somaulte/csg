@@ -36,64 +36,74 @@
 LC_ALL=C
 LANG=C
 
-# List colors 0-15 of base16 colorscheme to compare against
-color0='#1D1F23'
-color1='#A54B4B'
-color2='#6DA741'
-color3='#836539'
-color4='#216590'
-color5='#5C3466'
-color6='#1AAD95'
-color7='#B6B6B6'
-color8='#2D3135'
-color9='#D76F68'
-color10='#96CB5C'
-color11='#C59B3D'
-color12='#21A4DF'
-color13='#AD7FA8'
-color14='#68CBC0'
-color15='#D3D7CF'
+# List colors 0-15 of base16 colorscheme to work against
+colors=(
+	'#1D1F23'
+	'#A54B4B'
+	'#6DA741'
+	'#836539'
+	'#216590'
+	'#5C3466'
+	'#1AAD95'
+	'#B6B6B6'
+	'#2D3135'
+	'#D76F68'
+	'#96CB5C'
+	'#C59B3D'
+	'#21A4DF'
+	'#AD7FA8'
+	'#68CBC0'
+	'#D3D7CF'
+)
 
-# Usage: deconstruct_i [color]
+# Usage: deconstruct_i [input color]
 # Separate input color channels and convert from hexadecimal to decimal
 deconstruct_i() {
-	ir1="$((16#${1:1:2}))"
-	ig1="$((16#${1:3:2}))"
-	ib1="$((16#${1:5:2}))"
+	local out=(
+		"$(( 16#${1:1:2} ))"
+		"$(( 16#${1:3:2} ))"
+		"$(( 16#${1:5:2} ))"
+	)
+	echo "${out[@]}"
 }
 
 # Usage: deconstruct_b16 [index]
-# Separate color[index] color channels and convert from hexadecimal to decimal
+# Separate ${colors[index]} color channels and convert from hexadecimal to decimal
 deconstruct_b16() {
-	c="color${1}"
-	cr="$((16#${!c:1:2}))"
-	cg="$((16#${!c:3:2}))"
-	cb="$((16#${!c:5:2}))"
-	cr["$1"]="${cr}"
-	cg["$1"]="${cg}"
-	cb["$1"]="${cb}"
+	local c="${colors[$1]}"
+	local out=(
+		"$(( 16#${c:1:2} ))"
+		"$(( 16#${c:3:2} ))"
+		"$(( 16#${c:5:2} ))"
+	)
+	echo "${out[@]}"
 }
 
 # Formula:
-# a = ${i{rgb}1}; b = ${c{rgb}[$1]}; c = ( ${2} / 100 )
+# a = ${i{rgb}1}; b = ${c{rgb}[$1]}; c = ( ${weight} / 100 )
 # ( ac + b(100 - c) )
 #
-# Usage: merge [index] [weight]
+# Usage: merge [weight] [input red] [input green] [input blue] [b16 red] [b16 green] [b16 blue]
 # Generates color channel values between the current base16 and input colors
 merge() {
-	ir2="$(( ( ( ${2} * ${ir1} ) + ( ( 100 - ${2} ) * ${cr[$1]} ) ) / 100 ))"
-	ig2="$(( ( ( ${2} * ${ig1} ) + ( ( 100 - ${2} ) * ${cg[$1]} ) ) / 100 ))"
-	ib2="$(( ( ( ${2} * ${ib1} ) + ( ( 100 - ${2} ) * ${cb[$1]} ) ) / 100 ))"
+	local weight="$1"
+	local out=(
+		"$(( ( ( ${weight} * ${2} ) + ( ( 100 - ${weight} ) * ${5} ) ) / 100 ))"
+		"$(( ( ( ${weight} * ${3} ) + ( ( 100 - ${weight} ) * ${6} ) ) / 100 ))"
+		"$(( ( ( ${weight} * ${4} ) + ( ( 100 - ${weight} ) * ${7} ) ) / 100 ))"
+	)
+	echo "${out[@]}"
 }
 
-# Usage: reconstruct [index]
+# Usage: reconstruct [merged red] [merged green] [merged blue]
 # Converts new color channel values back into a full hexadecimal format color
 reconstruct() {
-	printf -v oc '%s%02x%02x%02x' "#" "${ir2}" "${ig2}" "${ib2}"
+	printf '%s%02x%02x%02x\n' "#" "${1}" "${2}" "${3}"
 }
 
 # Print usage info
 usage() {
+	OLDIFS="$IFS"
 	IFS=$'\n'
 	read -rd '' "usage_doc" <<-'EOF'
 		Usage: csg {OPTION} [color] [weight]
@@ -114,6 +124,7 @@ usage() {
 		   	CSG_DEBUG		If set to 'true' or '1', enter debug mode.
 		
 	EOF
+	IFS="$OLDIFS"
 	printf '%b\n' "$usage_doc"
 }
 
@@ -147,22 +158,33 @@ main() {
 				;;
 		esac
 		# We will check for the input fields here, otherwise we would unset found opts and then pass ${args[@]} as input
-		[[ "${args[$arg]}" =~ ^'#'[A-Fa-f0-9]{6}$ ]] && color_i="${args[$arg]}"
-		[[ "${args[$arg]}" =~ ^[0-9]$|^[0-9][0-9]$|^[0-1][0]{1,2}$ ]] && color_s="${args[$arg]}"
+		[[ "${args[$arg]}" =~ ^'#'[A-Fa-f0-9]{6}$ ]] && input="${args[$arg]}"
+		[[ "${args[$arg]}" =~ ^[0-9]$|^[0-9][0-9]$|^[0-1][0]{1,2}$ ]] && strength="${args[$arg]}"
 	done
-	[[ -n "$color_i" ]] && [[ -n "$color_s" ]] || {
+	[[ -n "$input" ]] && [[ -n "$strength" ]] || {
 		usage
 		exit 1
 	}
+	declare -A oc
 	# Deconstruct input color
-	deconstruct_i "$color_i"
-	# Loop through color0-15
+	decon_ioutput=($(deconstruct_i "$input"))
+	# Loop through colors 0-15
 	for i in {0..15}; do
-		deconstruct_b16 "$i"
-		merge "$i" "$color_s"
-		reconstruct "$i"
 		# Check if '-f' was set
-		[[ "$i" == "0" ]] && [[ "$COLOR0_SAME_AS_BG" == "1" ]] && printf '%b\n' "color${i}: $color_i" || printf '%b\n' "color${i}: $oc"
+		[[ "$i" == "0" ]] && [[ "$COLOR0_SAME_AS_BG" == "1" ]] && {
+			oc["color$i"]="$input"
+		} || {
+			oc["color$i"]=$(
+				decon_b16output=($(deconstruct_b16 "$i"))
+				mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
+				reconstruct "${mergeoutput[@]}"
+			)
+		}
+	done
+	wait
+	# Output all generated colors in order
+	for i in {0..15}; do
+		echo "Color$i: ${oc[color$i]}"
 	done
 	exit 0
 }
