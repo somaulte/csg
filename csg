@@ -221,23 +221,18 @@ main() {
 	decon_ioutput=($(deconstruct_i "$input"))
 	# Loop through colors 0-15
 	for i in {0..15}; do
-		# Check if '-f' was set
+		# Check if `-f` was set
 		[[ "$i" == "0" ]] && [[ "$COLOR0_SAME_AS_MASK" == "1" ]] && {
 			oc["color$i"]="$input"
 		} || {
 			oc["color$i"]=$(
 				decon_b16output=($(deconstruct_b16 "$i"))
-				[[ "$i" -lt 8 ]] && {
-					mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
-					reconstruct "${mergeoutput[@]}"
-				} || {
-					mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
-					# Check if '-g' was set
-					[[ "$GENERATE_HIGHLIGHTS" == "1" ]] && {
-						hilightoutput=($(hilight ${mergeoutput[@]}))
-						reconstruct "${hilightoutput[@]}"
-					} || reconstruct "${mergeoutput[@]}"
-				}
+				mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
+				# Check if `-g` was set
+				[[ "$i" -ge 8 ]] && [[ "$GENERATE_HIGHLIGHTS" == "1" ]] && {
+					hilightoutput=($(hilight ${mergeoutput[@]}))
+					reconstruct "${hilightoutput[@]}"
+				} || reconstruct "${mergeoutput[@]}"
 			)
 		}
 	done
