@@ -227,26 +227,28 @@ main() {
 	# Deconstruct input color
 	decon_ioutput=($(deconstruct_i "$input"))
 	# Loop through colors 0-15
-	for i in {0..15}; do
+	while read line; do
+		i="${line/ *}"
+		color="${line/* }"
+		oc[color$i]="$color"
+	done < <(for i in {0..15}; do
 		# Check if `-f` was set
 		[[ "$i" == "0" ]] && [[ "$COLOR0_SAME_AS_MASK" == "1" ]] && {
-			oc["color$i"]="$input"
+			echo "$i $input"
 		} || {
-			oc["color$i"]=$(
-				# Check if `-g` was set
-				[[ "$i" -ge 8 ]] && [[ "$GENERATE_HIGHLIGHTS" == "1" ]] && {
-					decon_b16output=($(deconstruct_b16 "$(( i - 8 ))"))
-					mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
-					hilightoutput=($(hilight ${mergeoutput[@]}))
-					reconstruct "${hilightoutput[@]}"
-				} || {
-					decon_b16output=($(deconstruct_b16 "$i"))
-					mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
-					reconstruct "${mergeoutput[@]}"
-				}
-			)
-		}
-	done
+			# Check if `-g` was set
+			[[ "$i" -ge 8 ]] && [[ "$GENERATE_HIGHLIGHTS" == "1" ]] && {
+				decon_b16output=($(deconstruct_b16 "$(( i - 8 ))"))
+				mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
+				hilightoutput=($(hilight ${mergeoutput[@]}))
+				echo $i $(reconstruct "${hilightoutput[@]}")
+			} || {
+				decon_b16output=($(deconstruct_b16 "$i"))
+				mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
+				echo $i $(reconstruct "${mergeoutput[@]}")
+			}
+		} &
+	done)
 	wait
 	# Output all generated colors in order
 	for i in {0..15}; do
