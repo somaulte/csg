@@ -161,7 +161,7 @@ usage() {
 	IFS=$'\n'
 	read -rd '' "usage_doc" <<-'EOF'
 		Usage: csg {OPTION} [color] [weight]
-		Example: csg -c="~/documents/colors" -f #12271c 55 -g
+		Example: csg -c="~/documents/colors" -f '#12271c' 55 -g
 		
 		   Options:
 		   	-c='/path/to/colors'	Load colorscheme to compare against from external file.

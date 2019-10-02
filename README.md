@@ -10,12 +10,13 @@
 
 ```sh
 Usage: csg {OPTION} color weight
-Example: csg -c="~/documents/colors" -f #12271c 55
+Example: csg -c="~/documents/colors" -f '#12271c' 55 -g
 
 	Options:
 		-c='/path/to/colors'	Load colorscheme to compare against from external file.
 					Color0-15 should be listed in this file as strings in bash syntax.
 		-f			Set color0 to the input color.
+		-g			Generate hilights from color0-7.
 		-h, --help		Display this message.
 
 	Arguments:
