@@ -57,7 +57,7 @@ colors=(
 )
 
 # Usage: deconstruct_i [input color]
-# Separate input color channels and convert from hexadecimal to decimal
+# Ouputs color channels converted from hexadecimal input colors to decimal
 deconstruct_i() {
 	local out=(
 		"$(( 16#${1:1:2} ))"
@@ -68,7 +68,7 @@ deconstruct_i() {
 }
 
 # Usage: deconstruct_b16 [index]
-# Separate ${colors[index]} color channels and convert from hexadecimal to decimal
+# Ouputs color channels converted from hexadecimal base16 colors to decimal
 deconstruct_b16() {
 	local c="${colors[$1]}"
 	local out=(
@@ -80,23 +80,67 @@ deconstruct_b16() {
 }
 
 # Formula:
-# a = ${i{rgb}1}; b = ${c{rgb}[$1]}; c = ( ${weight} / 100 )
-# ( ac + b(100 - c) )
+# i = ${rgb1}; b = ${rgb2}; c = ${weight}
+# ( ic + b(100 - c) )
 #
-# Usage: merge [weight] [input red] [input green] [input blue] [b16 red] [b16 green] [b16 blue]
-# Generates color channel values between the current base16 and input colors
+# Usage: merge [weight] [red1] [green1] [blue1] [red2] [green2] [blue2]
+# Outputs color channel values between two colors given as RGB color channels
 merge() {
 	local weight="$1"
 	local out=(
-		"$(( ( ( ${weight} * ${2} ) + ( ( 100 - ${weight} ) * ${5} ) ) / 100 ))"
-		"$(( ( ( ${weight} * ${3} ) + ( ( 100 - ${weight} ) * ${6} ) ) / 100 ))"
-		"$(( ( ( ${weight} * ${4} ) + ( ( 100 - ${weight} ) * ${7} ) ) / 100 ))"
+		"$(( ( ( weight * ${2} ) + ( ( 100 - weight ) * ${5} ) ) / 100 ))"
+		"$(( ( ( weight * ${3} ) + ( ( 100 - weight ) * ${6} ) ) / 100 ))"
+		"$(( ( ( weight * ${4} ) + ( ( 100 - weight ) * ${7} ) ) / 100 ))"
 	)
 	echo "${out[@]}"
 }
 
-# Usage: reconstruct [merged red] [merged green] [merged blue]
-# Converts new color channel values back into a full hexadecimal format color
+# Formula:
+# l = ${HSL[Lightness]}
+# ( l + 40 )
+#
+# Usage: hilight [red] [blue] [green]
+# Increases a color's Lightness in the HSL colorspace and outputs RGB color channels
+hilight() {
+	local min=100
+	local max=0
+	local r="$(( ( ${1} * 100 ) / 255 ))"
+	local g="$(( ( ${2} * 100 ) / 255 ))"
+	local b="$(( ( ${3} * 100 ) / 255 ))"
+	# Set min/max to our least and greatest rgb decimal values
+	min="$(( r < min ? r : min ))"
+	max="$(( r > max ? r : max ))"
+	min="$(( g < min ? g : min ))"
+	max="$(( g > max ? g : max ))"
+	min="$(( b < min ? b : min ))"
+	max="$(( b > max ? b : max ))"
+	# Calculate Saturation first, as Hue is dependent on it
+	local s="$(( min == max ? 0 : l < 50 ? (max - min) * 100 / (max + min) : (max - min) * 100 / (200 - max - min) ))"
+	local h="$(( s == 0 ? 0 : r == max ? (g - b) * 100 / (max - min) : g == max ? 200 + (b - r) * 100 / (max - min) : b == max ? 400 + (r - g) * 100 / (max - min) : 0 ))"
+	# If Hue at this point is negative, rotate it around by adding 600
+	h="$(( h < 0 ? 600 + h : h ))"
+	l="$(( ( min + max ) / 2 ))"
+	# Raise ${colors[{8..15}]}'s Lightness value by 40 to hilight them
+	# Not sure what's going on here.. but the conversion produces Lightness + 10
+	# so it should only be increased by 30
+	l="$(( l < 70 ? l + 30 : 100 ))"
+	# Convert back to RGB
+	local c="$(( ( ( 100 - (( l >= 50 ? 2 * l - 100 : -2 * l - 100 )) ) * s ) / 100 ))"
+	local x="$(( c * ( 100 - -1 * ( h % 2 - 100 ) ) ))"
+	local m="$(( l - ( c / 2 ) ))"
+	local a="$(( 0 <= h < 100 ? c : 100 <= h < 200 ? x : 200 <= h < 400 ? 0 : 400 <= h < 500 ? x : 500 <= h ? c : 0 ))"
+	local b="$(( 0 <= h < 100 ? x : 100 <= h < 300 ? c : 300 <= h < 400 ? x : 400 <= h ? 0 : 0 ))"
+	local c="$(( 0 <= h < 200 ? 0 : 200 <= h < 300 ? x : 300 <= h < 500 ? c : 500 <= h ? c : x ))"
+	local out=(
+		"$(( 255 * ( a + m ) / 100 ))"
+		"$(( 255 * ( b + m ) / 100 ))"
+		"$(( 255 * ( c + m ) / 100 ))"
+	)
+	echo "${out[@]}"
+}
+
+# Usage: reconstruct [red] [green] [blue]
+# Outputs a full hexadecimal format color converted from color channel values
 reconstruct() {
 	printf '%s%02x%02x%02x\n' "#" "${1}" "${2}" "${3}"
 }
@@ -107,12 +151,13 @@ usage() {
 	IFS=$'\n'
 	read -rd '' "usage_doc" <<-'EOF'
 		Usage: csg {OPTION} [color] [weight]
-		Example: csg -c="~/documents/colors" -f #12271c 55
+		Example: csg -c="~/documents/colors" -f #12271c 55 -g
 		
 		   Options:
 		   	-c='/path/to/colors'	Load colorscheme to compare against from external file.
 		   				Color0-15 should be listed in this file as strings in bash syntax.
 		   	-f			Set color0 to the input color.
+		   	-g			Generate hilights from color0-7.
 		   	-h, --help		Display this message.
 		
 		   Arguments:
@@ -140,7 +185,10 @@ main() {
 				exit 0
 				;;
 			'-f')
-				COLOR0_SAME_AS_BG="1"
+				COLOR0_SAME_AS_MASK="1"
+				;;
+			'-g')
+				GENERATE_HIGHLIGHTS="1"
 				;;
 			'-c='*)
 				# Try to source external colorscheme file
@@ -171,13 +219,22 @@ main() {
 	# Loop through colors 0-15
 	for i in {0..15}; do
 		# Check if '-f' was set
-		[[ "$i" == "0" ]] && [[ "$COLOR0_SAME_AS_BG" == "1" ]] && {
+		[[ "$i" == "0" ]] && [[ "$COLOR0_SAME_AS_MASK" == "1" ]] && {
 			oc["color$i"]="$input"
 		} || {
 			oc["color$i"]=$(
 				decon_b16output=($(deconstruct_b16 "$i"))
-				mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
-				reconstruct "${mergeoutput[@]}"
+				[[ "$i" -lt 8 ]] && {
+					mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
+					reconstruct "${mergeoutput[@]}"
+				} || {
+					mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
+					# Check if '-g' was set
+					[[ "$GENERATE_HIGHLIGHTS" == "1" ]] && {
+						hilightoutput=($(hilight ${mergeoutput[@]}))
+						reconstruct "${hilightoutput[@]}"
+					} || reconstruct "${mergeoutput[@]}"
+				}
 			)
 		}
 	done
