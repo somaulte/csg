@@ -96,48 +96,55 @@ merge() {
 }
 
 # Formula:
-# l = ${HSL[Lightness]}
-# ( l + 40 )
+# v = ${HSV[Value]}
+# ( v + 40 )
 #
 # Formula taken from dylanaraps's `Pure Bash Bible`, issue #90
 # https://github.com/dylanaraps/pure-bash-bible/issues/90
 #
 # Usage: hilight [red] [blue] [green]
-# Increases a color's Lightness in the HSL colorspace and outputs RGB color channels
+# Increases a color's Value in the HSV representation and outputs RGB color channels
 hilight() {
 	local min=100
-	local max=0
+	local v=0
 	local r="$(( ( ${1} * 100 ) / 255 ))"
 	local g="$(( ( ${2} * 100 ) / 255 ))"
 	local b="$(( ( ${3} * 100 ) / 255 ))"
 	# Set min/max to our least and greatest rgb decimal values
 	min="$(( r < min ? r : min ))"
-	max="$(( r > max ? r : max ))"
+	v="$(( r > v ? r : v ))"
 	min="$(( g < min ? g : min ))"
-	max="$(( g > max ? g : max ))"
+	v="$(( g > v ? g : v ))"
 	min="$(( b < min ? b : min ))"
-	max="$(( b > max ? b : max ))"
+	v="$(( b > v ? b : v ))"
 	# Calculate Saturation first, as Hue is dependent on it
-	local s="$(( min == max ? 0 : l < 50 ? (max - min) * 100 / (max + min) : (max - min) * 100 / (200 - max - min) ))"
-	local h="$(( s == 0 ? 0 : r == max ? (g - b) * 100 / (max - min) : g == max ? 200 + (b - r) * 100 / (max - min) : b == max ? 400 + (r - g) * 100 / (max - min) : 0 ))"
+	local s="$(( min == v ? 0 : ( ( v - min ) * 100 ) / v ))"
+	local h="$(( s == 0 ? 0 : r == v ? (g - b) * 100 / (v - min) : g == v ? 200 + (b - r) * 100 / (v - min) : b == v ? 400 + (r - g) * 100 / (v - min) : 0 ))"
 	# If Hue at this point is negative, rotate it around by adding 600
 	h="$(( h < 0 ? 600 + h : h ))"
-	l="$(( ( min + max ) / 2 ))"
-	# Raise ${colors[{8..15}]}'s Lightness value by 40 to hilight them
-	# Not sure what's going on here.. but the conversion produces Lightness + 10
-	# so it should only be increased by 30
-	l="$(( l < 70 ? l + 30 : 100 ))"
-	# Convert back to RGB
-	local c="$(( ( ( 100 - (( l >= 50 ? 2 * l - 100 : -2 * l - 100 )) ) * s ) / 100 ))"
-	local x="$(( c * ( 100 - -1 * ( h % 2 - 100 ) ) ))"
-	local m="$(( l - ( c / 2 ) ))"
-	local a="$(( 0 <= h < 100 ? c : 100 <= h < 200 ? x : 200 <= h < 400 ? 0 : 400 <= h < 500 ? x : 500 <= h ? c : 0 ))"
-	local b="$(( 0 <= h < 100 ? x : 100 <= h < 300 ? c : 300 <= h < 400 ? x : 400 <= h ? 0 : 0 ))"
-	local c="$(( 0 <= h < 200 ? 0 : 200 <= h < 300 ? x : 300 <= h < 500 ? c : 500 <= h ? c : x ))"
+	local h2="$(( h * 60 / 100 ))"
+	# Raise ${colors[{8..15}]}'s Value by 40 to hilight them
+	v="$(( v <= 60 ? v + 40 : 100 ))"
+	# Convert back to RGB from HSV
+	local c="$(( ( v * s ) / 100 ))"
+	local x="$(( c * ( 100 + ( h % 200 - 100 ) ) / 100 ))"
+	local m="$(( v - c ))"
+	h="$(( h / 100 ))"
+	# HSV => RGB Table
+	r="$(( h < 5 ? x : c ))"
+	r="$(( h < 4 ? 0 : r ))"
+	r="$(( h < 2 ? x : r ))"
+	r="$(( h < 1 ? c : r ))"
+	g="$(( h < 4 ? x : 0 ))"
+	g="$(( h < 3 ? c : g ))"
+	g="$(( h < 1 ? x : g ))"
+	b="$(( h < 5 ? c : x ))"
+	b="$(( h < 3 ? x : b ))"
+	b="$(( h < 2 ? 0 : b ))"
 	local out=(
-		"$(( 255 * ( a + m ) / 100 ))"
-		"$(( 255 * ( b + m ) / 100 ))"
-		"$(( 255 * ( c + m ) / 100 ))"
+		"$(( 255 * ( (( r + m > 100 ? ( r + m ) / 2 : r + m )) ) / 100 ))"
+		"$(( 255 * ( (( g + m > 100 ? ( g + m ) / 2 : g + m )) ) / 100 ))"
+		"$(( 255 * ( (( b + m > 100 ? ( b + m ) / 2 : b + m )) ) / 100 ))"
 	)
 	echo "${out[@]}"
 }
@@ -226,13 +233,17 @@ main() {
 			oc["color$i"]="$input"
 		} || {
 			oc["color$i"]=$(
-				decon_b16output=($(deconstruct_b16 "$i"))
-				mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
 				# Check if `-g` was set
 				[[ "$i" -ge 8 ]] && [[ "$GENERATE_HIGHLIGHTS" == "1" ]] && {
+					decon_b16output=($(deconstruct_b16 "$(( i - 8 ))"))
+					mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
 					hilightoutput=($(hilight ${mergeoutput[@]}))
 					reconstruct "${hilightoutput[@]}"
-				} || reconstruct "${mergeoutput[@]}"
+				} || {
+					decon_b16output=($(deconstruct_b16 "$i"))
+					mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
+					reconstruct "${mergeoutput[@]}"
+				}
 			)
 		}
 	done
