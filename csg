@@ -99,6 +99,9 @@ merge() {
 # l = ${HSL[Lightness]}
 # ( l + 40 )
 #
+# Formula taken from dylanaraps's `Pure Bash Bible`, issue #90
+# https://github.com/dylanaraps/pure-bash-bible/issues/90
+#
 # Usage: hilight [red] [blue] [green]
 # Increases a color's Lightness in the HSL colorspace and outputs RGB color channels
 hilight() {
