@@ -64,7 +64,7 @@ deconstruct_i() {
 		"$(( 16#${1:3:2} ))"
 		"$(( 16#${1:5:2} ))"
 	)
-	echo "${out[@]}"
+	printf '%s ' "${out[@]}"
 }
 
 # Usage: deconstruct_b16 [index]
@@ -76,7 +76,7 @@ deconstruct_b16() {
 		"$(( 16#${c:3:2} ))"
 		"$(( 16#${c:5:2} ))"
 	)
-	echo "${out[@]}"
+	printf '%s ' "${out[@]}"
 }
 
 # Formula:
@@ -92,7 +92,7 @@ merge() {
 		"$(( ( ( weight * ${3} ) + ( ( 100 - weight ) * ${6} ) ) / 100 ))"
 		"$(( ( ( weight * ${4} ) + ( ( 100 - weight ) * ${7} ) ) / 100 ))"
 	)
-	echo "${out[@]}"
+	printf '%s ' "${out[@]}"
 }
 
 # Formula:
@@ -122,7 +122,6 @@ hilight() {
 	local h="$(( s == 0 ? 0 : r == v ? (g - b) * 100 / (v - min) : g == v ? 200 + (b - r) * 100 / (v - min) : b == v ? 400 + (r - g) * 100 / (v - min) : 0 ))"
 	# If Hue at this point is negative, rotate it around by adding 600
 	h="$(( h < 0 ? 600 + h : h ))"
-	local h2="$(( h * 60 / 100 ))"
 	# Raise ${colors[{8..15}]}'s Value by 40 to hilight them
 	v="$(( v <= 60 ? v + 40 : 100 ))"
 	# Convert back to RGB from HSV
@@ -146,7 +145,7 @@ hilight() {
 		"$(( 255 * ( (( g + m > 100 ? ( g + m ) / 2 : g + m )) ) / 100 ))"
 		"$(( 255 * ( (( b + m > 100 ? ( b + m ) / 2 : b + m )) ) / 100 ))"
 	)
-	echo "${out[@]}"
+	printf '%s ' "${out[@]}"
 }
 
 # Usage: reconstruct [red] [green] [blue]
@@ -208,7 +207,7 @@ main() {
 					printf '%b\n' "Color file '$COLOR_FILE' not found."
 					usage
 					exit 1
-				}|| . "$COLOR_FILE" || {
+				} || . "$COLOR_FILE" || {
 					printf '%b\n' "Colors in '$COLOR_FILE' not found or bad syntax."
 					usage
 					exit 1
@@ -227,25 +226,24 @@ main() {
 	# Deconstruct input color
 	decon_ioutput=($(deconstruct_i "$input"))
 	# Loop through colors 0-15
-	while read line; do
-		i="${line/ *}"
-		color="${line/* }"
-		oc[color$i]="$color"
+	while read -r line; do
+		# Parse manipulation loop output and assign results to array in order
+		oc[color${line/ *}]="${line/* }"
 	done < <(for i in {0..15}; do
 		# Check if `-f` was set
 		[[ "$i" == "0" ]] && [[ "$COLOR0_SAME_AS_MASK" == "1" ]] && {
-			echo "$i $input"
+			printf '%s\n' "$i $input"
 		} || {
 			# Check if `-g` was set
 			[[ "$i" -ge 8 ]] && [[ "$GENERATE_HIGHLIGHTS" == "1" ]] && {
 				decon_b16output=($(deconstruct_b16 "$(( i - 8 ))"))
-				mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
-				hilightoutput=($(hilight ${mergeoutput[@]}))
-				echo $i $(reconstruct "${hilightoutput[@]}")
+				mergeoutput=($(merge "$strength" "${decon_ioutput[@]}" "${decon_b16output[@]}"))
+				hilightoutput=($(hilight "${mergeoutput[@]}"))
+				printf '%b\n' "$i $(reconstruct "${hilightoutput[@]}")"
 			} || {
 				decon_b16output=($(deconstruct_b16 "$i"))
-				mergeoutput=($(merge "$strength" ${decon_ioutput[@]} ${decon_b16output[@]}))
-				echo $i $(reconstruct "${mergeoutput[@]}")
+				mergeoutput=($(merge "$strength" "${decon_ioutput[@]}" "${decon_b16output[@]}"))
+				printf '%b\n' "$i $(reconstruct "${mergeoutput[@]}")"
 			}
 		} &
 	done)
