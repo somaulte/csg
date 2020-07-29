@@ -151,20 +151,21 @@ hilight() {
 # Usage: reconstruct [red] [green] [blue]
 # Outputs a full hexadecimal format color converted from color channel values
 reconstruct() {
-	printf '%s%02x%02x%02x\n' "#" "${1}" "${2}" "${3}"
+	printf '%s%02x%02x%02x' "#" "${1}" "${2}" "${3}"
 }
 
 # Print usage info
 usage() {
+	local out
 	OLDIFS="$IFS"
 	IFS=$'\n'
-	read -rd '' "usage_doc" <<-'EOF'
+	read -rd '' "out" <<-'EOF'
 		Usage: csg {OPTION} [color] [weight]
 		Example: csg -c="~/documents/colors" -f '#12271c' 55 -g
 		
 		   Options:
 		   	-c='/path/to/colors'	Load colorscheme to compare against from external file.
-		   				Color0-15 should be listed in this file as strings in bash syntax.
+		   				File should contain an array with color0-15 as separate indices in bash syntax.
 		   	-f			Set color0 to the input color.
 		   	-g			Generate hilights from color0-7.
 		   	-h, --help		Display this message.
@@ -179,7 +180,7 @@ usage() {
 		
 	EOF
 	IFS="$OLDIFS"
-	printf '%b\n' "$usage_doc"
+	printf '%s' "$out"
 }
 
 main() {
@@ -190,7 +191,7 @@ main() {
 	for arg in "${!args[@]}"; do
 		case "${args[$arg]}" in
 			'-h'|'--help')
-				usage
+				printf '%b\n' "$(usage)"
 				exit 0
 				;;
 			'-f')
@@ -205,13 +206,18 @@ main() {
 				COLOR_FILE="${COLOR_FILE##-c=}"
 				[[ ! -e "$COLOR_FILE" ]] && {
 					printf '%b\n' "Color file '$COLOR_FILE' not found."
-					usage
+					printf '%b\n' "$(usage)"
 					exit 1
 				} || . "$COLOR_FILE" || {
 					printf '%b\n' "Colors in '$COLOR_FILE' not found or bad syntax."
-					usage
+					printf '%b\n' "$(usage)"
 					exit 1
 				}
+				;;
+			'-'*)
+				printf '%b\n' "Bad argument: ${args[$arg]}"
+				printf '%b\n' "$(usage)"
+				exit 1
 				;;
 		esac
 		# We will check for the input fields here, otherwise we would unset found opts and then pass ${args[@]} as input
@@ -219,7 +225,7 @@ main() {
 		[[ "${args[$arg]}" =~ ^[0-9]$|^[0-9][0-9]$|^[0-1][0]{1,2}$ ]] && strength="${args[$arg]}"
 	done
 	[[ -n "$input" ]] && [[ -n "$strength" ]] || {
-		usage
+		printf '%b\n' "$(usage)"
 		exit 1
 	}
 	declare -A oc
